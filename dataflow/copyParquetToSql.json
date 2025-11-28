@@ -1,0 +1,46 @@
+{
+	"name": "copyParquetToSql",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "StagingParquet"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "sqlCustomerStaging",
+						"type": "DatasetReference"
+					},
+					"name": "StagingSQL"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     rowUrlColumn: 'FilePath',",
+				"     format: 'parquet',",
+				"     fileSystem: 'democontainer',",
+				"     folderPath: 'dev/staging/customer') ~> StagingParquet",
+				"StagingParquet sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> StagingSQL"
+			]
+		}
+	}
+}

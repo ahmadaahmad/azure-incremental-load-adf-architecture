@@ -1,0 +1,52 @@
+{
+	"name": "copyInitialLoad",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "fullCustomersData",
+						"type": "DatasetReference"
+					},
+					"name": "sourceFullCustomerData"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "sqlCustomerData",
+						"type": "DatasetReference"
+					},
+					"name": "sinkSqlCustomerData"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          customerid as string,",
+				"          customernumber as integer,",
+				"          createdon as date,",
+				"          modifiedon as date,",
+				"          age as integer,",
+				"          churn as boolean,",
+				"          maritalstatus as string,",
+				"          balance as double",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> sourceFullCustomerData",
+				"sourceFullCustomerData sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinkSqlCustomerData"
+			]
+		}
+	}
+}

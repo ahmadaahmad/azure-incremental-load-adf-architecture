@@ -1,0 +1,142 @@
+{
+	"name": "initialLoadCustomers",
+	"properties": {
+		"activities": [
+			{
+				"name": "fullCopyDataflow",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "copyInitialLoad",
+						"type": "DataFlowReference"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "Add pipeline metadata record",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Set watermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[usp_InsertPipelineMetadata]",
+					"storedProcedureParameters": {
+						"NewWatermark": {
+							"value": {
+								"value": "@variables('MaxModifiedon')",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"RowCount": {
+							"value": null,
+							"type": "Int32"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Select most updated customer row",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "fullCopyDataflow",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select max(modifiedon) as LastWatermarkVal from dbo.DimCustomersData",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "sqlCustomerData",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Set watermark",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Select most updated customer row",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "MaxModifiedon",
+					"value": {
+						"value": "@activity('Select most updated customer row').output.firstRow.LastWatermarkVal",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"variables": {
+			"MaxModifiedon": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-11-24T02:05:17Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

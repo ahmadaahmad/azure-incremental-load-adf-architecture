@@ -1,0 +1,205 @@
+{
+	"name": "incrementalLoadCustomers",
+	"properties": {
+		"activities": [
+			{
+				"name": "Extract modified rows",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "Latest Watermark saved",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "extractModifiedOnly",
+						"type": "DataFlowReference",
+						"parameters": {
+							"lastRunDate": {
+								"value": "'@{variables('OldWatermark')}'",
+								"type": "Expression"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "None"
+				}
+			},
+			{
+				"name": "New watermark update",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Extract modified rows",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "NewWatermark",
+					"value": {
+						"value": "@string(json(string(activity('Extract modified rows').output.runStatus.output.cacheSink.value[0])).maxModifiedon)",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Row Count Value",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "New watermark update",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "NewRowCount",
+					"value": {
+						"value": "@json(string(activity('Extract modified rows').output.runStatus.output.cacheSink.value[0])).rowCount",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Add pipeline metadata record",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Row Count Value",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[usp_InsertPipelineMetadata]",
+					"storedProcedureParameters": {
+						"NewWatermark": {
+							"value": {
+								"value": "@variables('NewWatermark')",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"PipelineName": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"RowCount": {
+							"value": {
+								"value": "@variables('NewRowCount')",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SQL select max watermark",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select max(cast(lastwatermark as date)) as LastWatermarkVal from dbo.PipelineMetadata",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "sqlCustomerData",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Latest Watermark saved",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "SQL select max watermark",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "OldWatermark",
+					"value": {
+						"value": "@activity('SQL select max watermark').output.firstRow.LastWatermarkVal",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"variables": {
+			"NewWatermark": {
+				"type": "String"
+			},
+			"NewRowCount": {
+				"type": "Integer"
+			},
+			"OldWatermark": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-11-24T01:53:58Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

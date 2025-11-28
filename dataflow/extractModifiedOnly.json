@@ -1,0 +1,100 @@
+{
+	"name": "extractModifiedOnly",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "fullCustomersData",
+						"type": "DatasetReference"
+					},
+					"name": "SourceCsv"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "AzureDataLakeStorage1",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkCustomerDataInc"
+				},
+				{
+					"name": "cacheSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filterNewModifiedRows"
+				},
+				{
+					"name": "addPartitionColumns"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "derivedColumn1"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     lastRunDate as string",
+				"}",
+				"source(output(",
+				"          customerid as string,",
+				"          customernumber as integer,",
+				"          createdon as date,",
+				"          modifiedon as date,",
+				"          age as integer,",
+				"          churn as boolean,",
+				"          maritalstatus as string,",
+				"          balance as double",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> SourceCsv",
+				"SourceCsv filter(modifiedon > toDate($lastRunDate)) ~> filterNewModifiedRows",
+				"split1@sinkToDestination derive(year = toString(year(modifiedon)),",
+				"          month = right('0' + toString(month(modifiedon)), 2),",
+				"          day = right('0' + toString(dayOfMonth(modifiedon)), 2)) ~> addPartitionColumns",
+				"filterNewModifiedRows split(true(),",
+				"     disjoint: true) ~> split1@(sinkToDestination, sinkToCache)",
+				"split1@sinkToCache aggregate(maxModifiedon = max(modifiedon),",
+				"          rowCount = count()) ~> aggregate1",
+				"aggregate1 derive(maxModifiedon = toString(toTimestamp(maxModifiedon))) ~> derivedColumn1",
+				"addPartitionColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: 'democontainer',",
+				"     folderPath: 'dev/staging/customer',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('key',",
+				"          0,",
+				"          year,",
+				"          month,",
+				"          day",
+				"     )) ~> sinkCustomerDataInc",
+				"derivedColumn1 sink(validateSchema: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     store: 'cache',",
+				"     format: 'inline',",
+				"     output: true,",
+				"     saveOrder: 1,",
+				"     mapColumn(",
+				"          maxModifiedon,",
+				"          rowCount",
+				"     )) ~> cacheSink"
+			]
+		}
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"name": "adf-incremental-load-demo",
+	"location": "canadacentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "85a62bcc-9475-4f68-9778-716592e7bee6",
+		"tenantId": "b378421c-3bab-4634-97ec-21a0e437cccc"
+	}
+}

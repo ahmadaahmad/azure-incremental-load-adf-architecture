@@ -1,0 +1,94 @@
+{
+	"name": "loadToSqlCustomers",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy to Staging SQL",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "copyParquetToSql",
+						"type": "DataFlowReference"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "SQL Merge",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Copy to Staging SQL",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[ups_MergeCustomerData]"
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Clean Customers Staging SQL",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "SQL Merge",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "delete from dbo.stgCustomersData"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2025-11-24T11:46:40Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
