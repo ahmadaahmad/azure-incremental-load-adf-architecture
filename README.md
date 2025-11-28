@@ -48,7 +48,13 @@ The goal of this project is to simulate a real-world enterprise data-engineering
 
 ## Pipelines execution sequence:
 1. initialLoadCustomers (one time big event)
+   <img width="1036" height="361" alt="image" src="https://github.com/user-attachments/assets/9fc60e68-54ff-4b87-837a-28057feef231" />
+
 2. incrementalLoadCustomers (runs daily once)
+   <img width="1701" height="468" alt="image" src="https://github.com/user-attachments/assets/e39e8a2f-e3c9-4e56-bdfb-9a7572c63f96" />
+
 3. loadToSqlCustomers (dependent on successful execution of incrementalLoadCustomers)
+   <img width="1699" height="403" alt="image" src="https://github.com/user-attachments/assets/28d0c461-57a3-425b-970a-870b9cc9eaaa" />
+
 
 
